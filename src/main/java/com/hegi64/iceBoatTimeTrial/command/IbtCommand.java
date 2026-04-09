@@ -3,13 +3,21 @@ package com.hegi64.iceBoatTimeTrial.command;
 import com.hegi64.iceBoatTimeTrial.command.sub.BestSubCommand;
 import com.hegi64.iceBoatTimeTrial.command.sub.HologramSubCommand;
 import com.hegi64.iceBoatTimeTrial.command.sub.ReloadSubCommand;
+import com.hegi64.iceBoatTimeTrial.command.sub.SettingsSubCommand;
+import com.hegi64.iceBoatTimeTrial.command.sub.StatsSubCommand;
 import com.hegi64.iceBoatTimeTrial.command.sub.TopSubCommand;
+import com.hegi64.iceBoatTimeTrial.command.sub.TracksSubCommand;
 import com.hegi64.iceBoatTimeTrial.config.PluginConfig;
+import com.hegi64.iceBoatTimeTrial.gui.GuiSessionService;
+import com.hegi64.iceBoatTimeTrial.gui.menu.SettingsMenu;
+import com.hegi64.iceBoatTimeTrial.gui.menu.TrackBrowserMenu;
 import com.hegi64.iceBoatTimeTrial.hologram.HologramService;
 import com.hegi64.iceBoatTimeTrial.hologram.HologramUpdater;
 import com.hegi64.iceBoatTimeTrial.service.BossBarService;
 import com.hegi64.iceBoatTimeTrial.service.RunService;
 import com.hegi64.iceBoatTimeTrial.service.TrackService;
+import com.hegi64.iceBoatTimeTrial.service.analytics.LeaderboardAnalyticsService;
+import com.hegi64.iceBoatTimeTrial.service.stats.PlayerStatsService;
 import com.hegi64.iceBoatTimeTrial.storage.Database;
 import com.hegi64.iceBoatTimeTrial.util.Chat;
 import org.bukkit.command.Command;
@@ -32,6 +40,11 @@ public class IbtCommand implements CommandExecutor, TabCompleter {
                       PluginConfig config,
                       TrackService trackService,
                       Database database,
+                      LeaderboardAnalyticsService analytics,
+                      PlayerStatsService playerStatsService,
+                      SettingsMenu settingsMenu,
+                      TrackBrowserMenu trackBrowserMenu,
+                      GuiSessionService guiSessions,
                       BossBarService bossBarService,
                       RunService runService,
                       HologramService hologramService,
@@ -39,7 +52,10 @@ public class IbtCommand implements CommandExecutor, TabCompleter {
         this.config = config;
 
         register(new BestSubCommand(config, trackService, database));
-        register(new TopSubCommand(config, trackService, database));
+        register(new StatsSubCommand(config, playerStatsService));
+        register(new TopSubCommand(config, trackService, database, analytics));
+        register(new SettingsSubCommand(config, settingsMenu, guiSessions));
+        register(new TracksSubCommand(config, trackBrowserMenu, guiSessions));
         register(new ReloadSubCommand(plugin, config, trackService, runService, bossBarService, hologramService, hologramUpdater));
         register(new HologramSubCommand(config, trackService, hologramService, hologramUpdater));
     }

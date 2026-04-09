@@ -1,6 +1,6 @@
 # Configuration for IceBoatTimeTrial plugin
 # Used by ConfigMigrator to decide whether migration is needed.
-configVersion: "1.0.0"
+configVersion: "1.0.1"
 
 bossbar:
   # Title format for the bossbar. Placeholders: %track%, %time%, %sector%, %delta%

@@ -1,5 +1,5 @@
 name: IceBoatTimeTrial
-version: '1.0'
+version: '1.0.1'
 main: com.hegi64.iceBoatTimeTrial.Main
 api-version: '1.21'
 prefix: [ IceBoatTimeTrial ]

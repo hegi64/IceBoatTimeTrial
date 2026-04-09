@@ -1,0 +1,72 @@
+# Configuration for IceBoatTimeTrial plugin
+# Used by ConfigMigrator to decide whether migration is needed.
+configVersion: "1.0.0"
+
+bossbar:
+  # Title format for the bossbar. Placeholders: %track%, %time%, %sector%, %delta%
+  title: "&bTrack: &f%track% &7| &e%time% &7| &aS%sector% &7| %delta%"
+
+timing:
+  # Debounce time in milliseconds to prevent multiple triggers when crossing lines
+  trigger-debounce-ms: 250
+  # If true, aborts the run when the player teleports
+  abort-on-teleport: true
+  # If true, aborts the run when the player changes world
+  abort-on-world-change: true
+  # If true, aborts the run when the player leaves the boat
+  abort-on-vehicle-exit: true
+  # If true, saves the run history for each player
+  save-run-history: true
+
+detection:
+  # Policy for overlapping start/finish lines: FIRST_CREATED or NEAREST_CENTER
+  overlap-policy: "FIRST_CREATED" # FIRST_CREATED or NEAREST_CENTER
+  # If true, enforces the direction when crossing lines
+  enforce-direction: true
+  # Default threshold for direction enforcement (dot product, 0.0-1.0)
+  default-direction-threshold: 0.25
+
+leaderboard:
+  # Default number of entries to show in leaderboard
+  default-limit: 10
+
+messages:
+  # Prefix for all plugin messages
+  prefix: "&7[&bIBT&7] "
+  # Message shown when a run is aborted
+  run-aborted: "&cRun aborted."
+  # Message shown when a sector is finished. Placeholders: %sector%, %color%, %time%, %delta%
+  sector-finished: "&7Sector %sector%: %color%%time% &8(%delta%)"
+  # Message shown when a run is finished. Placeholders: %color%, %total%, %delta%, %s1%, %s2%, %s3%
+  run-finished: "&aFinished! Total: %color%%total% &8(%delta%) &7(S1 %s1% | S2 %s2% | S3 %s3%)"
+  # Legacy PB messages (currently unused)
+  pb-total: "&6New PB total: &f%time%"
+  # Legacy PB messages (currently unused)
+  pb-sector: "&eNew PB Sector %sector%: &f%time%"
+
+hologram:
+  # Number of leaderboard entries to show in holograms
+  limit: 10
+  # Title for top times hologram
+  top_times_title: "§bTop Times for §f%track%"
+  # Title for top players hologram
+  top_players_title: "§bTop Players for §f%track%"
+  # Title for sector top times holograms. Placeholder: %track%, %sector%
+  top_times_sector_title: "§bTop S%sector% Times for §f%track%"
+  # Title for sector top players holograms. Placeholder: %track%, %sector%
+  top_players_sector_title: "§bTop S%sector% Players for §f%track%"
+  # Format for each entry line in hologram
+  entry: "§e#%rank% §f%player% §7- §a%time%"
+  # Format for each entry line in top_players hologram
+  entry_players: "§e#%rank% §f%player% §7- §a%time%"
+  # Message shown when there are no entries
+  empty: "§7No entries yet."
+
+# Editor preview settings
+editor-preview:
+  # How often to redraw the preview (ticks, lower = faster, min 1)
+  interval-ticks: 2
+  # Distance between edge particles (lower = denser, min 0.05, max 1.0)
+  edge-step: 0.2
+  # Particle size for preview (0.1 to 2.0)
+  particle-size: 0.75

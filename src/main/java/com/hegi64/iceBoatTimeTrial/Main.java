@@ -8,6 +8,9 @@ import com.hegi64.iceBoatTimeTrial.editor.TrackEditorSessionService;
 import com.hegi64.iceBoatTimeTrial.gui.GuiListener;
 import com.hegi64.iceBoatTimeTrial.gui.GuiRegistry;
 import com.hegi64.iceBoatTimeTrial.gui.GuiSessionService;
+import com.hegi64.iceBoatTimeTrial.gui.menu.SettingsMenu;
+import com.hegi64.iceBoatTimeTrial.gui.menu.TrackBrowserMenu;
+import com.hegi64.iceBoatTimeTrial.gui.menu.TrackDetailsMenu;
 import com.hegi64.iceBoatTimeTrial.hologram.HologramService;
 import com.hegi64.iceBoatTimeTrial.hologram.HologramUpdater;
 import com.hegi64.iceBoatTimeTrial.listener.RunListener;
@@ -17,6 +20,12 @@ import com.hegi64.iceBoatTimeTrial.service.BossBarService;
 import com.hegi64.iceBoatTimeTrial.service.RunPersistenceService;
 import com.hegi64.iceBoatTimeTrial.service.RunService;
 import com.hegi64.iceBoatTimeTrial.service.TrackService;
+import com.hegi64.iceBoatTimeTrial.service.analytics.LeaderboardAnalyticsService;
+import com.hegi64.iceBoatTimeTrial.service.analytics.SqliteLeaderboardAnalyticsService;
+import com.hegi64.iceBoatTimeTrial.service.stats.PlayerStatsService;
+import com.hegi64.iceBoatTimeTrial.service.stats.SqlitePlayerStatsService;
+import com.hegi64.iceBoatTimeTrial.service.settings.DatabasePlayerSettingsStore;
+import com.hegi64.iceBoatTimeTrial.service.settings.PlayerSettingsService;
 import com.hegi64.iceBoatTimeTrial.storage.Database;
 import com.hegi64.iceBoatTimeTrial.util.ConfigMigrator;
 import com.sk89q.worldedit.bukkit.WorldEditPlugin;
@@ -41,6 +50,12 @@ public final class Main extends JavaPlugin {
     private TrackEditorPreviewService editorPreviewService;
     private GuiRegistry guiRegistry;
     private GuiSessionService guiSessions;
+    private LeaderboardAnalyticsService leaderboardAnalytics;
+    private PlayerStatsService playerStatsService;
+    private PlayerSettingsService playerSettingsService;
+    private SettingsMenu settingsMenu;
+    private TrackBrowserMenu trackBrowserMenu;
+    private TrackDetailsMenu trackDetailsMenu;
 
     public void onLoad() {
         super.onLoad();
@@ -63,9 +78,10 @@ public final class Main extends JavaPlugin {
 
         this.database = new Database(this);
         this.trackService = new TrackService(database);
-        this.bossBarService = new BossBarService(this, pluginConfig);
+        this.playerSettingsService = new PlayerSettingsService(new DatabasePlayerSettingsStore(database));
+        this.bossBarService = new BossBarService(this, pluginConfig, playerSettingsService);
         RunPersistenceService persistenceService = new RunPersistenceService(this, database);
-        RunMessagePresenter messagePresenter = new RunMessagePresenter(pluginConfig);
+        RunMessagePresenter messagePresenter = new RunMessagePresenter(pluginConfig, playerSettingsService);
         this.runService = new RunService(trackService, database, bossBarService, persistenceService, messagePresenter, pluginConfig);
         this.hologramService = new HologramService(this);
         this.editorSessions = new TrackEditorSessionService();
@@ -73,6 +89,14 @@ public final class Main extends JavaPlugin {
         this.editorPreviewService.setConfig(pluginConfig);
         this.guiRegistry = new GuiRegistry();
         this.guiSessions = new GuiSessionService();
+        this.leaderboardAnalytics = new SqliteLeaderboardAnalyticsService(database);
+        this.playerStatsService = new SqlitePlayerStatsService(database);
+        this.settingsMenu = new SettingsMenu(playerSettingsService, bossBarService, guiSessions);
+        this.trackDetailsMenu = new TrackDetailsMenu(trackService, guiSessions);
+        this.trackBrowserMenu = new TrackBrowserMenu(trackService, trackDetailsMenu, guiSessions);
+        guiRegistry.register(settingsMenu);
+        guiRegistry.register(trackDetailsMenu);
+        guiRegistry.register(trackBrowserMenu);
 
         try {
             database.init();
@@ -83,13 +107,27 @@ public final class Main extends JavaPlugin {
             return;
         }
 
-        this.hologramUpdater = new HologramUpdater(hologramService, trackService, database, pluginConfig);
+        this.hologramUpdater = new HologramUpdater(hologramService, trackService, database, leaderboardAnalytics, pluginConfig);
         this.runService.setHologramUpdater(hologramUpdater);
         hologramService.loadAll();
         hologramService.spawnAll();
         hologramUpdater.updateAll();
 
-        IbtCommand ibtCommand = new IbtCommand(this, pluginConfig, trackService, database, bossBarService, runService, hologramService, hologramUpdater);
+        IbtCommand ibtCommand = new IbtCommand(
+                this,
+                pluginConfig,
+                trackService,
+                database,
+                leaderboardAnalytics,
+                playerStatsService,
+                settingsMenu,
+                trackBrowserMenu,
+                guiSessions,
+                bossBarService,
+                runService,
+                hologramService,
+                hologramUpdater
+        );
         PluginCommand ibt = Objects.requireNonNull(getCommand("ibt"), "ibt command missing in plugin.yml");
         ibt.setExecutor(ibtCommand);
         ibt.setTabCompleter(ibtCommand);

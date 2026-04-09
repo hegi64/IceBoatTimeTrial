@@ -9,7 +9,9 @@ Bukkit plugin for ice boat time trials with WorldEdit-powered track editing and 
 - Start/finish + exactly two checkpoints
 - Direction checks, overlap policy, and anti-trigger debounce
 - Live bossbar with sector delta
-- Hologram leaderboards (top times, top players, per-sector variants)
+- Holograms: top times/players, sector variants, recent PBs, track info, improved/consistent
+- Player settings persisted in SQLite (bossbar, message verbosity)
+- In-game settings GUI (`/ibt settings`) and track browser/details GUI (`/ibt tracks`)
 - Dedicated track editor mode (`/icetrackeditor`, alias `/ite`)
 - Editor lock model: one editor per track, one active track per player
 - Editor preview particles (edges only + direction arrows, player-only visibility)
@@ -23,7 +25,11 @@ Bukkit plugin for ice boat time trials with WorldEdit-powered track editing and 
 ## Commands
 ### Player / runtime commands (`/ibt`)
 - `/ibt best [track]`
-- `/ibt top <track> [limit] [all]`
+- `/ibt top <times|players|improved|consistent> <track> [day|week|month|all] [limit]`
+- `/ibt top active [day|week|month|all] [limit]`
+- `/ibt stats [player] [day|week|month|all]`
+- `/ibt settings`
+- `/ibt tracks`
 - `/ibt hologram <place|remove> <track> <type>`
 - `/ibt reload`
 

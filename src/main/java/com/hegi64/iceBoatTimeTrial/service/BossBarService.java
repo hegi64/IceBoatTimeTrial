@@ -2,6 +2,7 @@ package com.hegi64.iceBoatTimeTrial.service;
 
 import com.hegi64.iceBoatTimeTrial.config.PluginConfig;
 import com.hegi64.iceBoatTimeTrial.model.ActiveRun;
+import com.hegi64.iceBoatTimeTrial.service.settings.PlayerSettingsService;
 import com.hegi64.iceBoatTimeTrial.util.Chat;
 import com.hegi64.iceBoatTimeTrial.util.TimeFormat;
 import org.bukkit.Bukkit;
@@ -17,13 +18,15 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class BossBarService {
     private final JavaPlugin plugin;
+    private final PlayerSettingsService playerSettingsService;
     private PluginConfig config;
     private final Map<UUID, BossBar> bars = new ConcurrentHashMap<>();
     private int taskId = -1;
 
-    public BossBarService(JavaPlugin plugin, PluginConfig config) {
+    public BossBarService(JavaPlugin plugin, PluginConfig config, PlayerSettingsService playerSettingsService) {
         this.plugin = plugin;
         this.config = config;
+        this.playerSettingsService = playerSettingsService;
     }
 
     public void start(Map<UUID, ActiveRun> activeRuns) {
@@ -42,6 +45,10 @@ public class BossBarService {
     }
 
     public void show(Player player) {
+        if (!playerSettingsService.get(player.getUniqueId()).bossbarEnabled()) {
+            hide(player);
+            return;
+        }
         bars.computeIfAbsent(player.getUniqueId(), ignored -> {
             BossBar bar = Bukkit.createBossBar("", BarColor.BLUE, BarStyle.SOLID);
             bar.addPlayer(player);
@@ -63,6 +70,10 @@ public class BossBarService {
         for (Map.Entry<UUID, ActiveRun> entry : activeRuns.entrySet()) {
             Player player = Bukkit.getPlayer(entry.getKey());
             if (player == null || !player.isOnline()) {
+                continue;
+            }
+            if (!playerSettingsService.get(player.getUniqueId()).bossbarEnabled()) {
+                hide(player);
                 continue;
             }
             BossBar bar = bars.computeIfAbsent(player.getUniqueId(), ignored -> {

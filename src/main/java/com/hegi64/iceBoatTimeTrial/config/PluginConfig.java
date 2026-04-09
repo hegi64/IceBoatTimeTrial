@@ -69,6 +69,11 @@ public class PluginConfig {
         return config.getInt("leaderboard.default-limit", 10);
     }
 
+    public int leaderboardConsistencySampleSize() {
+        int val = config.getInt("leaderboard.consistency-sample-size", 10);
+        return Math.max(3, val);
+    }
+
     public int hologramLimit() {
         return config.getInt("hologram.limit", 10);
     }
@@ -116,5 +121,49 @@ public class PluginConfig {
         double val = config.getDouble("editor-preview.particle-size", 0.75);
         if (val < 0.1 || val > 2.0) return 0.75f;
         return (float) val;
+    }
+
+    public String hologramRecentPbsTitle() {
+        return config.getString("hologram.recent_pbs_title", "§bRecent PBs for §f%track%");
+    }
+
+    public String hologramTrackInfoTitle() {
+        return config.getString("hologram.track_info_title", "§bTrack Info §f%track%");
+    }
+
+    public String hologramTopImprovedTitle() {
+        return config.getString("hologram.top_improved_title", "§bMost Improved §f%track%");
+    }
+
+    public String hologramTopConsistentTitle() {
+        return config.getString("hologram.top_consistent_title", "§bMost Consistent §f%track%");
+    }
+
+    public String hologramRecentPbEntry() {
+        return config.getString("hologram.recent_pb_entry", "§e#%rank% §f%player% §7- §a%time% §8(%date%)");
+    }
+
+    public String hologramImprovedEntry() {
+        return config.getString("hologram.improved_entry", "§e#%rank% §f%player% §7- §a%value%");
+    }
+
+    public String hologramConsistentEntry() {
+        return config.getString("hologram.consistent_entry", "§e#%rank% §f%player% §7- §a%value%");
+    }
+
+    public String hologramTrackInfoLineWorld() {
+        return config.getString("hologram.track_info.world", "§7World: §f%world%");
+    }
+
+    public String hologramTrackInfoLineEnabled() {
+        return config.getString("hologram.track_info.enabled", "§7Enabled: §f%enabled%");
+    }
+
+    public String hologramTrackInfoLineRuns() {
+        return config.getString("hologram.track_info.runs", "§7Runs: §f%runs%");
+    }
+
+    public String hologramTrackInfoLineLastActivity() {
+        return config.getString("hologram.track_info.last_activity", "§7Last activity: §f%last_activity%");
     }
 }

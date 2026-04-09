@@ -1,6 +1,6 @@
 # Configuration for IceBoatTimeTrial plugin
 # Used by ConfigMigrator to decide whether migration is needed.
-configVersion: "1.0.0"
+configVersion: "1.0.1"
 
 bossbar:
   # Title format for the bossbar. Placeholders: %track%, %time%, %sector%, %delta%
@@ -29,6 +29,8 @@ detection:
 leaderboard:
   # Default number of entries to show in leaderboard
   default-limit: 10
+  # Number of runs considered for consistency leaderboard (minimum 3)
+  consistency-sample-size: 10
 
 messages:
   # Prefix for all plugin messages
@@ -55,10 +57,33 @@ hologram:
   top_times_sector_title: "§bTop S%sector% Times for §f%track%"
   # Title for sector top players holograms. Placeholder: %track%, %sector%
   top_players_sector_title: "§bTop S%sector% Players for §f%track%"
+  # Title for recent PBs hologram
+  recent_pbs_title: "§bRecent PBs for §f%track%"
+  # Title for track info hologram
+  track_info_title: "§bTrack Info §f%track%"
+  # Title for most improved hologram
+  top_improved_title: "§bMost Improved §f%track%"
+  # Title for most consistent hologram
+  top_consistent_title: "§bMost Consistent §f%track%"
   # Format for each entry line in hologram
   entry: "§e#%rank% §f%player% §7- §a%time%"
   # Format for each entry line in top_players hologram
   entry_players: "§e#%rank% §f%player% §7- §a%time%"
+  # Format for each recent PB line (%date% supported)
+  recent_pb_entry: "§e#%rank% §f%player% §7- §a%time% §8(%date%)"
+  # Format for each improved line
+  improved_entry: "§e#%rank% §f%player% §7- §a%value%"
+  # Format for each consistent line
+  consistent_entry: "§e#%rank% §f%player% §7- §a%value%"
+  track_info:
+    # World info line
+    world: "§7World: §f%world%"
+    # Enabled flag info line
+    enabled: "§7Enabled: §f%enabled%"
+    # Run count info line
+    runs: "§7Runs: §f%runs%"
+    # Last activity info line
+    last_activity: "§7Last activity: §f%last_activity%"
   # Message shown when there are no entries
   empty: "§7No entries yet."
 

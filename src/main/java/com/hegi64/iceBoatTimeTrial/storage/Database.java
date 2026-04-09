@@ -17,6 +17,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalDouble;
+import java.util.OptionalLong;
 import java.util.UUID;
 
 public class Database {
@@ -112,6 +114,15 @@ public class Database {
                         valid INTEGER NOT NULL,
                         finished_at INTEGER NOT NULL,
                         FOREIGN KEY (track_uuid) REFERENCES tracks(track_uuid) ON DELETE CASCADE
+                    )
+                    """);
+            statement.execute("""
+                    CREATE TABLE IF NOT EXISTS player_settings (
+                        player_uuid TEXT PRIMARY KEY,
+                        bossbar_enabled INTEGER NOT NULL DEFAULT 1,
+                        holograms_enabled INTEGER NOT NULL DEFAULT 1,
+                        message_verbosity TEXT NOT NULL DEFAULT 'NORMAL',
+                        updated_at INTEGER NOT NULL
                     )
                     """);
         }
@@ -601,17 +612,22 @@ public class Database {
     }
 
     public List<String> getTopTimesFromHistory(UUID trackUuid, int limit) throws SQLException {
-        return getTopTimesFromHistory(trackUuid, limit, 0);
+        return getTopTimesFromHistory(trackUuid, limit, 0, 0L);
     }
 
     public List<String> getTopTimesFromHistory(UUID trackUuid, int limit, int sector) throws SQLException {
+        return getTopTimesFromHistory(trackUuid, limit, sector, 0L);
+    }
+
+    public List<String> getTopTimesFromHistory(UUID trackUuid, int limit, int sector, long minFinishedAt) throws SQLException {
         String column = historyColumnForSector(sector);
         List<String> lines = new ArrayList<>();
-        String sql = "SELECT player_uuid, " + column + " AS value_ms FROM run_history WHERE track_uuid = ? AND valid = 1 ORDER BY " + column + " ASC LIMIT ?";
+        String sql = "SELECT player_uuid, " + column + " AS value_ms FROM run_history WHERE track_uuid = ? AND valid = 1 AND finished_at >= ? ORDER BY " + column + " ASC LIMIT ?";
         try (Connection connection = getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, trackUuid.toString());
-            statement.setInt(2, limit);
+            statement.setLong(2, Math.max(0L, minFinishedAt));
+            statement.setInt(3, limit);
             try (ResultSet rs = statement.executeQuery()) {
                 while (rs.next()) {
                     lines.add(rs.getString("player_uuid") + ":" + rs.getLong("value_ms"));
@@ -619,6 +635,64 @@ public class Database {
             }
         }
         return lines;
+    }
+
+    public List<String> getTopPlayersFromHistory(UUID trackUuid, int limit, int sector, long minFinishedAt) throws SQLException {
+        String column = historyColumnForSector(sector);
+        List<String> lines = new ArrayList<>();
+        String sql = "SELECT player_uuid, MIN(" + column + ") AS value_ms FROM run_history WHERE track_uuid = ? AND valid = 1 AND finished_at >= ? GROUP BY player_uuid ORDER BY value_ms ASC LIMIT ?";
+        try (Connection connection = getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, trackUuid.toString());
+            statement.setLong(2, Math.max(0L, minFinishedAt));
+            statement.setInt(3, limit);
+            try (ResultSet rs = statement.executeQuery()) {
+                while (rs.next()) {
+                    lines.add(rs.getString("player_uuid") + ":" + rs.getLong("value_ms"));
+                }
+            }
+        }
+        return lines;
+    }
+
+    public List<PlayerRunSample> getPlayerRunSamples(UUID trackUuid, long minFinishedAt) throws SQLException {
+        List<PlayerRunSample> rows = new ArrayList<>();
+        String sql = "SELECT player_uuid, total_ms, finished_at FROM run_history WHERE track_uuid = ? AND valid = 1 AND finished_at >= ? ORDER BY player_uuid ASC, finished_at ASC";
+        try (Connection connection = getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, trackUuid.toString());
+            statement.setLong(2, Math.max(0L, minFinishedAt));
+            try (ResultSet rs = statement.executeQuery()) {
+                while (rs.next()) {
+                    rows.add(new PlayerRunSample(
+                            UUID.fromString(rs.getString("player_uuid")),
+                            rs.getLong("total_ms"),
+                            rs.getLong("finished_at")
+                    ));
+                }
+            }
+        }
+        return rows;
+    }
+
+    public List<TrackActivityRow> getTrackActivity(long minFinishedAt, int limit) throws SQLException {
+        List<TrackActivityRow> rows = new ArrayList<>();
+        String sql = "SELECT t.track_uuid, t.name, COUNT(*) AS run_count FROM run_history r JOIN tracks t ON t.track_uuid = r.track_uuid WHERE r.valid = 1 AND r.finished_at >= ? GROUP BY t.track_uuid, t.name ORDER BY run_count DESC LIMIT ?";
+        try (Connection connection = getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setLong(1, Math.max(0L, minFinishedAt));
+            statement.setInt(2, limit);
+            try (ResultSet rs = statement.executeQuery()) {
+                while (rs.next()) {
+                    rows.add(new TrackActivityRow(
+                            UUID.fromString(rs.getString("track_uuid")),
+                            rs.getString("name"),
+                            rs.getLong("run_count")
+                    ));
+                }
+            }
+        }
+        return rows;
     }
 
     private String playerBestColumnForSector(int sector) {
@@ -656,6 +730,174 @@ public class Database {
                         rs.getLong("best_s2_ms"),
                         rs.getLong("best_s3_ms")
                 });
+            }
+        }
+    }
+
+    public long countPlayerRuns(UUID playerUuid, long minFinishedAt, boolean validOnly) throws SQLException {
+        String sql = validOnly
+                ? "SELECT COUNT(*) AS c FROM run_history WHERE player_uuid = ? AND valid = 1 AND finished_at >= ?"
+                : "SELECT COUNT(*) AS c FROM run_history WHERE player_uuid = ? AND finished_at >= ?";
+        try (Connection connection = getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, playerUuid.toString());
+            statement.setLong(2, Math.max(0L, minFinishedAt));
+            try (ResultSet rs = statement.executeQuery()) {
+                return rs.next() ? rs.getLong("c") : 0L;
+            }
+        }
+    }
+
+    public OptionalLong getPlayerBestTotal(UUID playerUuid, long minFinishedAt) throws SQLException {
+        String sql = "SELECT MIN(total_ms) AS best_total FROM run_history WHERE player_uuid = ? AND valid = 1 AND finished_at >= ?";
+        try (Connection connection = getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, playerUuid.toString());
+            statement.setLong(2, Math.max(0L, minFinishedAt));
+            try (ResultSet rs = statement.executeQuery()) {
+                if (!rs.next() || rs.getObject("best_total") == null) {
+                    return OptionalLong.empty();
+                }
+                return OptionalLong.of(rs.getLong("best_total"));
+            }
+        }
+    }
+
+    public OptionalDouble getPlayerRecentAverage(UUID playerUuid, long minFinishedAt, int sampleSize) throws SQLException {
+        int limit = Math.max(1, sampleSize);
+        String sql = "SELECT AVG(total_ms) AS avg_total FROM (" +
+                "SELECT total_ms FROM run_history WHERE player_uuid = ? AND valid = 1 AND finished_at >= ? ORDER BY finished_at DESC LIMIT ?" +
+                ")";
+        try (Connection connection = getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, playerUuid.toString());
+            statement.setLong(2, Math.max(0L, minFinishedAt));
+            statement.setInt(3, limit);
+            try (ResultSet rs = statement.executeQuery()) {
+                if (!rs.next() || rs.getObject("avg_total") == null) {
+                    return OptionalDouble.empty();
+                }
+                return OptionalDouble.of(rs.getDouble("avg_total"));
+            }
+        }
+    }
+
+    public List<PlayerRunSample> getPlayerRunSamplesForPlayer(UUID playerUuid, long minFinishedAt) throws SQLException {
+        List<PlayerRunSample> rows = new ArrayList<>();
+        String sql = "SELECT player_uuid, total_ms, finished_at FROM run_history WHERE player_uuid = ? AND valid = 1 AND finished_at >= ? ORDER BY finished_at ASC";
+        try (Connection connection = getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, playerUuid.toString());
+            statement.setLong(2, Math.max(0L, minFinishedAt));
+            try (ResultSet rs = statement.executeQuery()) {
+                while (rs.next()) {
+                    rows.add(new PlayerRunSample(
+                            UUID.fromString(rs.getString("player_uuid")),
+                            rs.getLong("total_ms"),
+                            rs.getLong("finished_at")
+                    ));
+                }
+            }
+        }
+        return rows;
+    }
+
+    public record PlayerRunSample(UUID playerUuid, long totalMs, long finishedAt) {
+    }
+
+    public record TrackActivityRow(UUID trackUuid, String trackName, long runCount) {
+    }
+
+    public record PlayerSettingsRow(boolean bossbarEnabled, String verbosity) {
+    }
+
+    public Optional<PlayerSettingsRow> loadPlayerSettings(UUID playerUuid) throws SQLException {
+        String sql = "SELECT bossbar_enabled, message_verbosity FROM player_settings WHERE player_uuid = ?";
+        try (Connection connection = getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, playerUuid.toString());
+            try (ResultSet rs = statement.executeQuery()) {
+                if (!rs.next()) {
+                    return Optional.empty();
+                }
+                return Optional.of(new PlayerSettingsRow(
+                        rs.getInt("bossbar_enabled") == 1,
+                        rs.getString("message_verbosity")
+                ));
+            }
+        }
+    }
+
+    public void upsertPlayerSettings(UUID playerUuid, boolean bossbarEnabled, String verbosity) throws SQLException {
+        String sql = """
+                INSERT INTO player_settings(player_uuid, bossbar_enabled, holograms_enabled, message_verbosity, updated_at)
+                VALUES(?, ?, 1, ?, ?)
+                ON CONFLICT(player_uuid) DO UPDATE SET
+                    bossbar_enabled = excluded.bossbar_enabled,
+                    message_verbosity = excluded.message_verbosity,
+                    updated_at = excluded.updated_at
+                """;
+        try (Connection connection = getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, playerUuid.toString());
+            statement.setInt(2, bossbarEnabled ? 1 : 0);
+            statement.setString(3, verbosity == null ? "NORMAL" : verbosity);
+            statement.setLong(4, System.currentTimeMillis());
+            statement.executeUpdate();
+        }
+    }
+
+    public record RecentPbRow(UUID playerUuid, long totalMs, long finishedAt) {
+    }
+
+    public List<RecentPbRow> getRecentPbEvents(UUID trackUuid, int limit) throws SQLException {
+        List<RecentPbRow> events = new ArrayList<>();
+        String sql = "SELECT player_uuid, total_ms, finished_at FROM run_history WHERE track_uuid = ? AND valid = 1 ORDER BY finished_at ASC";
+        Map<UUID, Long> bestByPlayer = new HashMap<>();
+        try (Connection connection = getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, trackUuid.toString());
+            try (ResultSet rs = statement.executeQuery()) {
+                while (rs.next()) {
+                    UUID playerUuid = UUID.fromString(rs.getString("player_uuid"));
+                    long total = rs.getLong("total_ms");
+                    long finishedAt = rs.getLong("finished_at");
+                    Long best = bestByPlayer.get(playerUuid);
+                    if (best == null || total < best) {
+                        bestByPlayer.put(playerUuid, total);
+                        events.add(new RecentPbRow(playerUuid, total, finishedAt));
+                    }
+                }
+            }
+        }
+        events.sort((a, b) -> Long.compare(b.finishedAt(), a.finishedAt()));
+        if (events.size() > limit) {
+            return new ArrayList<>(events.subList(0, limit));
+        }
+        return events;
+    }
+
+    public long getTrackRunCount(UUID trackUuid) throws SQLException {
+        String sql = "SELECT COUNT(*) AS c FROM run_history WHERE track_uuid = ? AND valid = 1";
+        try (Connection connection = getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, trackUuid.toString());
+            try (ResultSet rs = statement.executeQuery()) {
+                return rs.next() ? rs.getLong("c") : 0L;
+            }
+        }
+    }
+
+    public OptionalLong getTrackLastActivity(UUID trackUuid) throws SQLException {
+        String sql = "SELECT MAX(finished_at) AS last_activity FROM run_history WHERE track_uuid = ? AND valid = 1";
+        try (Connection connection = getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, trackUuid.toString());
+            try (ResultSet rs = statement.executeQuery()) {
+                if (!rs.next() || rs.getObject("last_activity") == null) {
+                    return OptionalLong.empty();
+                }
+                return OptionalLong.of(rs.getLong("last_activity"));
             }
         }
     }

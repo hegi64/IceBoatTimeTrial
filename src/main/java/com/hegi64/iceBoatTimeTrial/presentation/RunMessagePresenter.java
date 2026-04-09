@@ -3,6 +3,8 @@ package com.hegi64.iceBoatTimeTrial.presentation;
 import com.hegi64.iceBoatTimeTrial.config.PluginConfig;
 import com.hegi64.iceBoatTimeTrial.model.ActiveRun;
 import com.hegi64.iceBoatTimeTrial.model.RunResult;
+import com.hegi64.iceBoatTimeTrial.service.settings.MessageVerbosity;
+import com.hegi64.iceBoatTimeTrial.service.settings.PlayerSettingsService;
 import com.hegi64.iceBoatTimeTrial.util.Chat;
 import com.hegi64.iceBoatTimeTrial.util.TimeFormat;
 import org.bukkit.entity.Player;
@@ -13,9 +15,11 @@ public class RunMessagePresenter {
     private static final String COLOR_WORSE = "&e";
 
     private final PluginConfig config;
+    private final PlayerSettingsService playerSettingsService;
 
-    public RunMessagePresenter(PluginConfig config) {
+    public RunMessagePresenter(PluginConfig config, PlayerSettingsService playerSettingsService) {
         this.config = config;
+        this.playerSettingsService = playerSettingsService;
     }
 
     public void sendAbort(Player player, String reasonMessage) {
@@ -31,6 +35,9 @@ public class RunMessagePresenter {
     }
 
     public void sendSectorMessage(Player player, int sector, long value, Long personalBest, Long globalBest) {
+        if (playerSettingsService.get(player.getUniqueId()).verbosity() != MessageVerbosity.DETAILED) {
+            return;
+        }
         String color = performanceColor(value, personalBest, globalBest);
         String delta = personalBest == null
                 ? "&7n/a&8"
@@ -44,6 +51,11 @@ public class RunMessagePresenter {
     }
 
     public void sendFinishMessage(Player player, ActiveRun run, RunResult result) {
+        // MINIMAL still receives finish message, but condensed.
+        if (playerSettingsService.get(player.getUniqueId()).verbosity() == MessageVerbosity.MINIMAL) {
+            send(player, "&aFinished: &f" + TimeFormat.formatMillis(result.totalMillis()));
+            return;
+        }
         String totalColor = performanceColor(result.totalMillis(), run.getPersonalBestTotalMillis(), run.getGlobalBestTotalMillis());
         String delta = run.getPersonalBestTotalMillis() == null
                 ? "&7n/a&8"

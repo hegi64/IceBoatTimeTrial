@@ -80,6 +80,11 @@ public class TrackService {
         database.upsertRegion(track.getUuid(), type, regionBox);
     }
 
+    public void setSpawn(Track track, Location location) throws SQLException {
+        track.setSpawn(location);
+        database.updateSpawn(track.getUuid(), location);
+    }
+
     public void setDirection(Track track, RegionType type, double x, double y, double z, Double threshold) throws SQLException {
         RegionBox box = track.getRegion(type);
         if (box == null) {

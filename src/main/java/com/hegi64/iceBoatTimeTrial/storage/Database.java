@@ -3,6 +3,9 @@ package com.hegi64.iceBoatTimeTrial.storage;
 import com.hegi64.iceBoatTimeTrial.model.RegionBox;
 import com.hegi64.iceBoatTimeTrial.model.RegionType;
 import com.hegi64.iceBoatTimeTrial.model.Track;
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -40,6 +43,7 @@ public class Database {
             try {
                 ensureUuidSchema(connection);
                 createIndexes(connection);
+                createTackSpawnColumns(connection);
                 connection.commit();
             } catch (SQLException exception) {
                 connection.rollback();
@@ -310,6 +314,20 @@ public class Database {
         }
     }
 
+    private void createTackSpawnColumns(Connection connection) throws SQLException {
+        if (!columnExists(connection, "tracks", "spawn_x")) {
+            try (Statement statement = connection.createStatement()) {
+                statement.execute("ALTER TABLE tracks ADD COLUMN spawn_x INTEGER");
+                statement.execute("ALTER TABLE tracks ADD COLUMN spawn_y INTEGER");
+                statement.execute("ALTER TABLE tracks ADD COLUMN spawn_z INTEGER");
+                statement.execute("ALTER TABLE tracks ADD COLUMN spawn_yaw DOUBLE");
+                statement.execute("ALTER TABLE tracks ADD COLUMN spawn_pitch DOUBLE");
+            } catch (Exception e) {
+                Bukkit.getLogger().warning("Failed to add spawn location columns to tracks table: " + e.getMessage());
+            }
+        }
+    }
+
     private boolean tableExists(Connection connection, String tableName) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("SELECT name FROM sqlite_master WHERE type='table' AND name=?")) {
             statement.setString(1, tableName);
@@ -321,7 +339,7 @@ public class Database {
 
     private boolean columnExists(Connection connection, String tableName, String columnName) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("PRAGMA table_info(" + tableName + ")");
-             ResultSet rs = statement.executeQuery()) {
+            ResultSet rs = statement.executeQuery()) {
             while (rs.next()) {
                 if (columnName.equalsIgnoreCase(rs.getString("name"))) {
                     return true;
@@ -339,7 +357,7 @@ public class Database {
         UUID trackUuid = UUID.randomUUID();
         try (Connection connection = getConnection();
              PreparedStatement statement = connection.prepareStatement(
-                     "INSERT INTO tracks(track_uuid, name, world, enabled, created_at) VALUES(?, ?, ?, 1, ?)") ) {
+                     "INSERT INTO tracks(track_uuid, name, world, enabled, created_at) VALUES(?, ?, ?, 1, ?)")) {
             statement.setString(1, trackUuid.toString());
             statement.setString(2, name);
             statement.setString(3, world);
@@ -361,18 +379,13 @@ public class Database {
     public Optional<Track> findTrackByName(String name) throws SQLException {
         try (Connection connection = getConnection();
              PreparedStatement statement = connection.prepareStatement(
-                     "SELECT track_uuid, name, world, enabled FROM tracks WHERE lower(name) = lower(?)")) {
+                     "SELECT track_uuid, name, world, enabled, spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch FROM tracks WHERE lower(name) = lower(?)")) {
             statement.setString(1, name);
             try (ResultSet rs = statement.executeQuery()) {
                 if (!rs.next()) {
                     return Optional.empty();
                 }
-                Track track = new Track(
-                        UUID.fromString(rs.getString("track_uuid")),
-                        rs.getString("name"),
-                        rs.getString("world"),
-                        rs.getInt("enabled") == 1
-                );
+                Track track = getTrackFromResultSet(rs);
                 loadTrackRegions(connection, track);
                 return Optional.of(track);
             }
@@ -382,20 +395,50 @@ public class Database {
     public List<Track> loadAllTracks() throws SQLException {
         List<Track> tracks = new ArrayList<>();
         try (Connection connection = getConnection();
-             PreparedStatement statement = connection.prepareStatement("SELECT track_uuid, name, world, enabled FROM tracks ORDER BY created_at ASC");
+             PreparedStatement statement = connection.prepareStatement("SELECT track_uuid, name, world, enabled, spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch FROM tracks ORDER BY created_at ASC");
              ResultSet rs = statement.executeQuery()) {
             while (rs.next()) {
-                Track track = new Track(
-                        UUID.fromString(rs.getString("track_uuid")),
-                        rs.getString("name"),
-                        rs.getString("world"),
-                        rs.getInt("enabled") == 1
-                );
+                Track track = getTrackFromResultSet(rs);
                 loadTrackRegions(connection, track);
                 tracks.add(track);
             }
         }
         return tracks;
+    }
+
+    private Track getTrackFromResultSet(ResultSet rs) throws SQLException {
+        Track track = new Track(
+                UUID.fromString(rs.getString("track_uuid")),
+                rs.getString("name"),
+                rs.getString("world"),
+                rs.getInt("enabled") == 1
+        );
+
+        Location spawnLocation = new Location(null, 0, 0, 0);
+        spawnLocation.setWorld(plugin.getServer().getWorld(track.getWorld()));
+        spawnLocation.setX(rs.getInt("spawn_x"));
+        if (rs.wasNull()) {
+            return track;
+        }
+        spawnLocation.setY(rs.getInt("spawn_y"));
+        if (rs.wasNull()) {
+            return track;
+        }
+        spawnLocation.setZ(rs.getInt("spawn_z"));
+        if (rs.wasNull()) {
+            return track;
+        }
+        spawnLocation.setYaw(rs.getFloat("spawn_yaw"));
+        if (rs.wasNull()) {
+            return track;
+        }
+        spawnLocation.setPitch(rs.getFloat("spawn_pitch"));
+        if (rs.wasNull()) {
+            return track;
+        }
+        track.setSpawn(spawnLocation);
+
+        return track;
     }
 
     private void loadTrackRegions(Connection connection, Track track) throws SQLException {
@@ -496,6 +539,20 @@ public class Database {
             setNullableDouble(statement, 4, threshold);
             statement.setString(5, trackUuid.toString());
             statement.setString(6, type.name());
+            statement.executeUpdate();
+        }
+    }
+
+    public void updateSpawn(UUID trackUuid, Location location) throws SQLException {
+        try (Connection connection = getConnection();
+            PreparedStatement statement = connection.prepareStatement(
+                "UPDATE tracks SET spawn_x = ?, spawn_y = ?, spawn_z = ?, spawn_yaw = ?, spawn_pitch = ? WHERE track_uuid = ?")) {
+            statement.setInt(1, location.getBlockX());
+            statement.setInt(2, location.getBlockY());
+            statement.setInt(3, location.getBlockZ());
+            statement.setDouble(4, location.getYaw());
+            statement.setDouble(5, location.getPitch());
+            statement.setString(6, trackUuid.toString());
             statement.executeUpdate();
         }
     }

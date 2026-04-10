@@ -1,17 +1,6 @@
 package com.hegi64.iceBoatTimeTrial.command;
 
-import com.hegi64.iceBoatTimeTrial.command.sub.editor.CreateEditorSubCommand;
-import com.hegi64.iceBoatTimeTrial.command.sub.editor.EditEditorSubCommand;
-import com.hegi64.iceBoatTimeTrial.command.sub.editor.EditorCommandContext;
-import com.hegi64.iceBoatTimeTrial.command.sub.editor.ForceEditEditorSubCommand;
-import com.hegi64.iceBoatTimeTrial.command.sub.editor.ForceStopEditorSubCommand;
-import com.hegi64.iceBoatTimeTrial.command.sub.editor.HelpEditorSubCommand;
-import com.hegi64.iceBoatTimeTrial.command.sub.editor.RenameEditorSubCommand;
-import com.hegi64.iceBoatTimeTrial.command.sub.editor.SetDirectionEditorSubCommand;
-import com.hegi64.iceBoatTimeTrial.command.sub.editor.SetRegionEditorSubCommand;
-import com.hegi64.iceBoatTimeTrial.command.sub.editor.StatusEditorSubCommand;
-import com.hegi64.iceBoatTimeTrial.command.sub.editor.StopEditEditorSubCommand;
-import com.hegi64.iceBoatTimeTrial.command.sub.editor.ValidateEditorSubCommand;
+import com.hegi64.iceBoatTimeTrial.command.sub.editor.*;
 import com.hegi64.iceBoatTimeTrial.config.PluginConfig;
 import com.hegi64.iceBoatTimeTrial.editor.TrackEditorSessionService;
 import com.hegi64.iceBoatTimeTrial.model.RegionType;
@@ -47,6 +36,7 @@ public class IteCommand implements CommandExecutor, TabCompleter {
         register(new SetRegionEditorSubCommand(context, "setcp1", "/ite setcp1", RegionType.CHECKPOINT_1));
         register(new SetRegionEditorSubCommand(context, "setcp2", "/ite setcp2", RegionType.CHECKPOINT_2));
         register(new SetDirectionEditorSubCommand(context));
+        register(new SetSpawnEditorSubCommand(context));
         register(new RenameEditorSubCommand(context));
         SubCommand statusCommand = new StatusEditorSubCommand(context);
         register(statusCommand);

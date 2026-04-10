@@ -8,6 +8,7 @@ import com.hegi64.iceBoatTimeTrial.gui.GuiSessionService;
 import com.hegi64.iceBoatTimeTrial.model.RegionType;
 import com.hegi64.iceBoatTimeTrial.model.Track;
 import com.hegi64.iceBoatTimeTrial.service.TrackService;
+import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
@@ -44,7 +45,26 @@ public class TrackDetailsMenu extends GuiMenu {
                 }
         ));
 
-        buttons.put(13, GuiButton.of(
+        if (track.hasSpawn()) {
+            buttons.put(13, GuiButton.of(
+                    GuiItems.item(Material.ENDER_PEARL,
+                            ChatColor.DARK_PURPLE + "Teleport to " + track.getName(), List.of(ChatColor.GRAY + "Click to teleport to track spawn.")),
+                    (p, event, ctx) -> {
+                        p.teleport(track.getSpawn());
+                        p.closeInventory();
+                    }
+            ));
+        } else {
+            buttons.put(13, GuiButton.of(
+                    GuiItems.item(Material.STRUCTURE_VOID,
+                            ChatColor.RED + "No spawn set", List.of(ChatColor.GRAY + "Could not find a spawn location for this track.")),
+                    (p, event, ctx) -> {
+                    }
+            ));
+        }
+
+
+        buttons.put(15, GuiButton.of(
                 GuiItems.item(Material.COMPASS,
                         "&bTrack Validation",
                         List.of(

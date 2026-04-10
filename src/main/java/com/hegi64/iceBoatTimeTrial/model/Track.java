@@ -1,5 +1,7 @@
 package com.hegi64.iceBoatTimeTrial.model;
 
+import org.bukkit.Location;
+
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.UUID;
@@ -10,6 +12,7 @@ public class Track {
     private final String world;
     private boolean enabled;
     private final Map<RegionType, RegionBox> regions;
+    private Location spawn;
 
     public Track(UUID uuid, String name, String world, boolean enabled) {
         this.uuid = uuid;
@@ -49,6 +52,14 @@ public class Track {
 
     public void setRegion(RegionType type, RegionBox box) {
         regions.put(type, box);
+    }
+
+    public Location getSpawn() { return spawn; }
+
+    public void setSpawn(Location spawn) { this.spawn = spawn; }
+
+    public boolean hasSpawn() {
+        return spawn != null;
     }
 
     public boolean isComplete() {
